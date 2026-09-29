@@ -103,14 +103,49 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'titles') {
     respond($stmt->fetchAll());
 }
 
-// 3) تفاصيل عمل محدد: GET /title/{id}
+// 3) تفاصيل عمل محدد (مع دعم تبديل اللغة الإنجليزية ديناميكياً من TMDB): GET /title/{id}?lang=en
 if ($method === 'GET' && count($segments) === 2 && $segments[0] === 'title') {
-    $id = (int)$segments[1];
+    $id   = (int)$segments[1];
+    $lang = isset($_GET['lang']) ? strtolower(trim($_GET['lang'])) : 'ar';
+
     $stmt = $pdo->prepare("SELECT * FROM titles WHERE id = :id LIMIT 1");
     $stmt->execute([':id' => $id]);
     $title = $stmt->fetch();
 
     if ($title) {
+        if ($lang === 'en' && !empty($title['tmdb_id'])) {
+            $tmdbKey = "8265bd1679663a7ea12ac168da84d2e8";
+            $apiUrl  = "https://api.themoviedb.org/3/movie/" . $title['tmdb_id'] . "?api_key=" . $tmdbKey . "&language=en-US";
+
+            $response = null;
+            if (function_exists('curl_init')) {
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $apiUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+                $response = curl_exec($ch);
+                curl_close($ch);
+            } else {
+                $ctx = stream_context_create([
+                    'ssl'  => ['verify_peer' => false, 'verify_peer_name' => false],
+                    'http' => ['timeout' => 4]
+                ]);
+                $response = @file_get_contents($apiUrl, false, $ctx);
+            }
+
+            if ($response) {
+                $tmdbData = json_decode($response, true);
+                if (!empty($tmdbData['title'])) {
+                    $title['title'] = $tmdbData['title'];
+                }
+                if (!empty($tmdbData['overview'])) {
+                    $title['description'] = $tmdbData['overview'];
+                }
+            }
+        }
+
         respond($title);
     } else {
         respond(null, false, "العمل السينمائي غير موجود", 404);
@@ -409,7 +444,7 @@ if ($method === 'POST' && count($segments) === 2 && $segments[0] === 'admin' && 
     }
 }
 
-// 15) جلب التريلر الرسمي للعمل من TMDB: GET /titles/{id}/trailer
+// 15) جلب التريلر الرسمي للعمل من TMDB مع دعم cURL وتخطي قيود SSL المحلية: GET /titles/{id}/trailer
 if ($method === 'GET' && count($segments) === 3 && $segments[0] === 'titles' && $segments[2] === 'trailer') {
     $titleId = (int)$segments[1];
     $stmt = $pdo->prepare("SELECT tmdb_id, title FROM titles WHERE id = :id LIMIT 1");
@@ -420,10 +455,25 @@ if ($method === 'GET' && count($segments) === 3 && $segments[0] === 'titles' && 
 
     if ($titleRow && !empty($titleRow['tmdb_id'])) {
         $tmdbKey = "8265bd1679663a7ea12ac168da84d2e8";
-        $apiUrl = "https://api.themoviedb.org/3/movie/" . $titleRow['tmdb_id'] . "/videos?api_key=" . $tmdbKey . "&language=en-US";
-        
-        $ctx = stream_context_create(['http' => ['timeout' => 3]]);
-        $response = @file_get_contents($apiUrl, false, $ctx);
+        $apiUrl = "https://api.themoviedb.org/3/movie/" . $titleRow['tmdb_id'] . "/videos?api_key=" . $tmdbKey;
+
+        $response = null;
+        if (function_exists('curl_init')) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $apiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+            $response = curl_exec($ch);
+            curl_close($ch);
+        } else {
+            $ctx = stream_context_create([
+                'ssl'  => ['verify_peer' => false, 'verify_peer_name' => false],
+                'http' => ['timeout' => 4]
+            ]);
+            $response = @file_get_contents($apiUrl, false, $ctx);
+        }
 
         if ($response) {
             $data = json_decode($response, true);

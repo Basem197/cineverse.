@@ -2,188 +2,132 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Clapperboard, Filter, Sparkles } from "lucide-react";
-import MovieCard from "@/components/MovieCard";
-import { getTitles, getGenres } from "@/services/api";
-import { Title, Genre } from "@/types";
+import Link from "next/link";
+import { Star, Search, Filter, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
+import { Title } from "@/types";
+import { useLanguage } from "@/context/LanguageContext";
+import { getPosterUrl, DEFAULT_POSTER } from "@/utils/imageUtils";
 
-export default function TitlesCatalogPage() {
+export default function TitlesPage() {
+  const { lang, dir, t } = useLanguage();
   const [titles, setTitles] = useState<Title[]>([]);
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-
-  const fallbackGenres: Genre[] = [
-    { id: 0, name: "الكل", slug: "all" },
-    { id: 28, name: "حركة وأكشن", slug: "action" },
-    { id: 53, name: "إثارة وتشويق", slug: "thriller" },
-    { id: 878, name: "خيال علمي", slug: "sci-fi" },
-    { id: 18, name: "دراما", slug: "drama" },
-    { id: 80, name: "جريمة وغموض", slug: "crime" },
-  ];
-
-  const fallbackTitles: Title[] = [
-    {
-      id: 1,
-      title: "Oppenheimer",
-      release_year: 2023,
-      rating: 8.9,
-      poster_path: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80",
-      backdrop_path: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1200&q=80",
-      description: "سيرة صانع القنبلة الذرية روبرت أوبنهايمر والصراع الأخلاقي والنفسي.",
-    },
-    {
-      id: 2,
-      title: "Interstellar",
-      release_year: 2014,
-      rating: 8.7,
-      poster_path: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=600&q=80",
-      backdrop_path: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1200&q=80",
-      description: "رحلة ملحمية عبر الثقوب الدودية في الفضاء لإنقاذ مصير البشرية.",
-    },
-    {
-      id: 3,
-      title: "The Batman",
-      release_year: 2022,
-      rating: 7.9,
-      poster_path: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80",
-      backdrop_path: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80",
-      description: "فارس الظلام يتعقب قاتلاً متسلسلاً يكشف فساد مدينة غوثام.",
-    },
-  ];
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    async function loadCatalog() {
+    async function loadTitles() {
       setLoading(true);
       try {
-        const [titlesRes, genresRes] = await Promise.allSettled([
-          getTitles({ limit: 60 }),
-          getGenres(),
-        ]);
-
-        // استخراج مصفوفة الأفلام من الاستجابة بمرونة أياً كان شكل التغليف
-        if (titlesRes.status === "fulfilled") {
-          const raw: any = titlesRes.value;
-          let list: Title[] = [];
-
-          if (Array.isArray(raw)) {
-            list = raw;
-          } else if (Array.isArray(raw?.data)) {
-            list = raw.data;
-          } else if (Array.isArray(raw?.data?.data)) {
-            list = raw.data.data;
-          } else if (Array.isArray(raw?.data?.data?.data)) {
-            list = raw.data.data.data;
-          }
-
-          if (list.length > 0) {
-            setTitles(list);
-          } else {
-            setTitles(fallbackTitles);
-          }
-        }
-
-        // استخراج التصنيفات
-        if (genresRes.status === "fulfilled") {
-          const genreResponse: any = genresRes.value;
-          const rawGenres = genreResponse?.data?.data || genreResponse?.data || genreResponse;
-          if (Array.isArray(rawGenres) && rawGenres.length > 0) {
-            setGenres([{ id: 0, name: "الكل", slug: "all" }, ...rawGenres]);
-          } else {
-            setGenres(fallbackGenres);
-          }
+        const query = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : "";
+        const res = await fetch(`http://127.0.0.1/cineverse/public/api/titles${query}`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setTitles(json.data);
+        } else {
+          setTitles([]);
         }
       } catch (err) {
-        console.error("خطأ أثناء جلب الكتالوج:", err);
-        setTitles(fallbackTitles);
-        setGenres(fallbackGenres);
+        console.error("فشل تحميل الأفلام:", err);
       } finally {
         setLoading(false);
       }
     }
 
-    loadCatalog();
-  }, []);
-
-  // فلترة الأفلام حسب البحث
-  const filteredTitles = titles.filter((t) =>
-    t.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    const timer = setTimeout(loadTitles, 250);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   return (
-    <main className="min-h-screen bg-[#07090e] text-white pb-24 pt-8" dir="rtl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[#07090e] text-white py-10 px-4 sm:px-6 lg:px-8" dir={dir}>
+      <div className="max-w-7xl mx-auto">
         
-        {/* عنوان الصفحة والهيدر */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/10 pb-8 mb-8">
+        {/* الهيدر والبحث */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-3">
-              <Clapperboard className="w-3.5 h-3.5" />
-              <span>دليل الأعمال السينمائية المرخصة</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-white">
-              استكشاف وتصفية الأعمال
+            <h1 className="text-2xl sm:text-4xl font-black text-white">
+              {lang === "ar" ? "كتالوج الأعمال السينمائية" : "Cinema & Series Catalog"}
             </h1>
-            <p className="text-sm text-gray-400 mt-1">
-              مكتبة الأفلام المحدثة حياً من قاعدة البيانات مع المنصات الرسمية لكل عمل
+            <p className="text-xs sm:text-sm text-gray-400 mt-1">
+              {lang === "ar" 
+                ? "تصفح الأعمال واكتشف المنصات الرسمية المرخصة لمشاهدتها" 
+                : "Browse titles and find verified official streaming providers"}
             </p>
           </div>
 
-          {/* شريط البحث المباشر */}
-          <div className="w-full md:w-96 flex items-center bg-[#0f141f] border border-white/10 rounded-2xl px-3.5 py-2.5 shadow-xl focus-within:border-amber-400/50 transition-all">
-            <Search className="w-4 h-4 text-gray-400 ml-2.5 shrink-0" />
+          <div className="relative w-full md:w-80">
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث بالاسم في الكتالوج..."
-              className="w-full bg-transparent text-white placeholder-gray-500 text-xs sm:text-sm focus:outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t.searchPlaceholder}
+              className={`w-full bg-[#0f141f] border border-white/10 rounded-xl py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 ${
+                dir === "rtl" ? "pr-9 pl-4" : "pl-9 pr-4"
+              }`}
             />
+            <Search className={`w-4 h-4 text-gray-400 absolute top-1/2 -translate-y-1/2 ${
+              dir === "rtl" ? "right-3" : "left-3"
+            }`} />
           </div>
         </div>
 
-        {/* أزرار فلترة التصنيفات */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 scrollbar-none">
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-400 pl-3 border-l border-white/10 shrink-0">
-            <Filter className="w-3.5 h-3.5 text-amber-400" />
-            <span>التصنيف:</span>
-          </div>
-          {genres.map((genre) => {
-            const isSelected = (selectedGenre === null && genre.id === 0) || selectedGenre === genre.id;
-            return (
-              <button
-                key={genre.id}
-                onClick={() => setSelectedGenre(genre.id === 0 ? null : genre.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                  isSelected
-                    ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
-                    : "bg-[#0f141f] text-gray-300 hover:bg-white/5 border border-white/5"
-                }`}
-              >
-                {genre.name}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* شبكة الأعمال السينمائية */}
+        {/* عرض شبكة الأفلام */}
         {loading ? (
-          <div className="py-24 flex flex-col items-center justify-center gap-3 text-amber-400">
-            <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-gray-400">جاري سحب الأفلام الحية من قاعدة البيانات...</span>
+          <div className="py-24 flex flex-col items-center justify-center gap-3">
+            <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+            <span className="text-xs text-gray-400">
+              {lang === "ar" ? "جاري تحميل الكتالوج..." : "Loading catalog..."}
+            </span>
           </div>
-        ) : filteredTitles.length === 0 ? (
-          <div className="py-20 text-center bg-[#0f141f] rounded-3xl border border-white/5 p-8">
-            <Sparkles className="w-8 h-8 text-amber-400 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-white mb-1">لم نجد نتائج مطابقة لبحثك</h3>
-            <p className="text-xs text-gray-400">جرب كتابة اسم مختلف أو تصفية تصنيف آخر.</p>
+        ) : titles.length === 0 ? (
+          <div className="text-center py-20 bg-[#0f141f] rounded-3xl border border-white/5 p-8">
+            <p className="text-sm text-gray-400">
+              {lang === "ar" ? "لم نجد أعمالاً تطابق بحثك." : "No titles found matching your search."}
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredTitles.map((title) => (
-              <MovieCard key={title.id} title={title} />
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+            {titles.map((title) => {
+              const poster = getPosterUrl(title.poster_path);
+
+              return (
+                <Link
+                  key={title.id}
+                  href={`/title/${title.id}`}
+                  className="group bg-[#0f141f] border border-white/10 rounded-2xl overflow-hidden hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/10 transition-all flex flex-col"
+                >
+                  <div className="aspect-[2/3] w-full overflow-hidden bg-black/60 relative">
+                    <img
+                      src={poster}
+                      alt={title.title}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = DEFAULT_POSTER;
+                      }}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute top-2 right-2 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-lg border border-white/10 flex items-center gap-1 text-[11px] text-amber-400 font-bold">
+                      <Star className="w-3 h-3 fill-amber-400" />
+                      <span>{Number(title.rating).toFixed(1)}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 flex flex-col flex-1 justify-between gap-2">
+                    <div>
+                      <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-amber-400 transition-colors line-clamp-1">
+                        {title.title}
+                      </h3>
+                      <span className="text-[11px] text-gray-400">
+                        {title.release_year || "Latest"}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-amber-400 font-bold">
+                      <span>{lang === "ar" ? "عرض التفاصيل" : "View details"}</span>
+                      {dir === "rtl" ? <ArrowLeft className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
 

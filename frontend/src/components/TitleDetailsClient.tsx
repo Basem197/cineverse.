@@ -10,22 +10,50 @@ import {
   ShieldCheck, 
   Bookmark, 
   ArrowRight, 
-  ArrowLeft,
+  ArrowLeft, 
   Globe, 
   Flame, 
   Skull, 
   Eye, 
   MessageSquare, 
   Wine, 
-  AlertTriangle,
-  Tv
+  AlertTriangle, 
+  Tv, 
+  Play, 
+  X 
 } from "lucide-react";
 import { Title } from "@/types";
 import { isInWatchlist, toggleWatchlist } from "@/utils/watchlist";
 import { useCountry, SUPPORTED_COUNTRIES } from "@/context/CountryContext";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { getProviderLogoUrl, getFallbackLogo } from "@/utils/imageUtils";
+import { 
+  getPosterUrl, 
+  getBackdropUrl, 
+  getProviderLogoUrl, 
+  getFallbackLogo,
+  DEFAULT_POSTER,
+  DEFAULT_BACKDROP 
+} from "@/utils/imageUtils";
+import { getCountryName } from "@/utils/translations";
+
+const translateMetric = (value: string, lang: string): string => {
+  const metricTranslations: Record<string, { ar: string; en: string }> = {
+    None: { ar: "منعدم", en: "None" },
+    Mild: { ar: "خفيف", en: "Mild" },
+    Moderate: { ar: "متوسط", en: "Moderate" },
+    Severe: { ar: "شديد", en: "Severe" },
+    Critical: { ar: "حرج", en: "Critical" },
+    "منعدم": { ar: "منعدم", en: "None" },
+    "خفيف": { ar: "خفيف", en: "Mild" },
+    "متوسط": { ar: "متوسط", en: "Moderate" },
+    "شديد": { ar: "شديد", en: "Severe" },
+    "حرج": { ar: "حرج", en: "Critical" },
+  };
+
+  const translated = metricTranslations[value];
+  return translated ? translated[lang === "ar" ? "ar" : "en"] : value;
+};
 
 interface AvailabilityItem {
   provider_name: string;
@@ -61,14 +89,18 @@ export default function TitleDetailsClient({ id }: { id: string }) {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // جلب تفاصيل العمل
+  const [showTrailerModal, setShowTrailerModal] = useState(false);
+  const [trailerKey, setTrailerKey] = useState<string | null>(null);
+  const [loadingTrailer, setLoadingTrailer] = useState(false);
+
+  // جلب تفاصيل العمل بناءً على اللغة المحددة
   useEffect(() => {
     if (!id) return;
 
     async function fetchTitleDetails() {
       setLoading(true);
       try {
-        const res = await fetch(`http://127.0.0.1/cineverse/public/api/title/${id}`);
+        const res = await fetch(`http://127.0.0.1/cineverse/public/api/title/${id}?lang=${lang}`);
         const json = await res.json();
         if (json.success && json.data) {
           setTitle(json.data);
@@ -82,7 +114,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
     }
 
     fetchTitleDetails();
-  }, [id]);
+  }, [id, lang]);
 
   // جلب منصات المشاهدة بحسب الدولة
   useEffect(() => {
@@ -108,7 +140,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
     fetchAvailability();
   }, [id, selectedCountry]);
 
-  // جلب تقرير الرقابة الأبوية
+  // جلب دليل العائلة
   useEffect(() => {
     if (!id) return;
 
@@ -127,7 +159,24 @@ export default function TitleDetailsClient({ id }: { id: string }) {
     fetchGuide();
   }, [id]);
 
-  // تبديل وحفظ العمل في المفضلة (محلياً وسحابياً)
+  const handleOpenTrailer = async () => {
+    setShowTrailerModal(true);
+    if (!trailerKey) {
+      setLoadingTrailer(true);
+      try {
+        const res = await fetch(`http://127.0.0.1/cineverse/public/api/titles/${id}/trailer`);
+        const json = await res.json();
+        if (json.success && json.data?.trailer_key) {
+          setTrailerKey(json.data.trailer_key);
+        }
+      } catch (e) {
+        console.error("فشل جلب التريلر:", e);
+      } finally {
+        setLoadingTrailer(false);
+      }
+    }
+  };
+
   const handleBookmark = async () => {
     if (!title) return;
     const newState = toggleWatchlist(title);
@@ -149,7 +198,6 @@ export default function TitleDetailsClient({ id }: { id: string }) {
     }
   };
 
-  // تتبع النقرات والتحويل لرابط المنصة
   const handleAffiliateClick = async (affUrl: string, officialUrl: string) => {
     try {
       fetch("http://127.0.0.1/cineverse/public/api/affiliate/track", {
@@ -186,6 +234,8 @@ export default function TitleDetailsClient({ id }: { id: string }) {
     }
   };
 
+  const languageMetricLabel = lang === "ar" ? "اللغة" : "Language";
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#07090e] text-white flex items-center justify-center" dir={dir}>
@@ -205,32 +255,69 @@ export default function TitleDetailsClient({ id }: { id: string }) {
           href="/titles"
           className="px-5 py-2.5 rounded-xl bg-amber-500 text-black font-bold text-xs"
         >
-          {t.exploreCatalog}
+          {t.exploreCatalogBtn}
         </Link>
       </main>
     );
   }
 
-  const backdropUrl = title.backdrop_path?.startsWith("http")
-    ? title.backdrop_path
-    : title.backdrop_path
-    ? `https://image.tmdb.org/t/p/original${title.backdrop_path}`
-    : "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?auto=format&fit=crop&w=1600&q=80";
+  const posterSrc = getPosterUrl(title.poster_path);
+  const backdropSrc = getBackdropUrl(title.backdrop_path);
 
-  const posterUrl = title.poster_path?.startsWith("http")
-    ? title.poster_path
-    : title.poster_path
-    ? `https://image.tmdb.org/t/p/w500${title.poster_path}`
-    : "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80";
+  const trailerIframeSrc = trailerKey
+    ? `https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&rel=0`
+    : `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(
+        title.title + " official trailer"
+      )}&autoplay=1`;
 
   return (
-    <main className="min-h-screen bg-[#07090e] text-white pb-24" dir={dir}>
+    <main className="min-h-screen bg-[#07090e] text-white pb-24 relative" dir={dir}>
       
+      {/* نافذة التريلر المنبثقة */}
+      {showTrailerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+          <div className="relative w-full max-w-4xl bg-[#0f141f] border border-white/15 rounded-3xl overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/40">
+              <span className="text-sm font-bold text-white flex items-center gap-2">
+                <Play className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <span>{title.title} - {t.watchTrailer}</span>
+              </span>
+              <button
+                onClick={() => setShowTrailerModal(false)}
+                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="relative aspect-video w-full bg-black flex items-center justify-center">
+              {loadingTrailer ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs text-gray-400">{t.loadingTrailer}</span>
+                </div>
+              ) : (
+                <iframe
+                  src={trailerIframeSrc}
+                  title={title.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. البانر السينمائي */}
       <section className="relative w-full h-[55vh] min-h-[420px] max-h-[580px] overflow-hidden">
         <img
-          src={backdropUrl}
+          src={backdropSrc}
           alt={title.title}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = DEFAULT_BACKDROP;
+          }}
           className="w-full h-full object-cover object-center filter brightness-40"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#07090e] via-[#07090e]/70 to-transparent" />
@@ -248,19 +335,19 @@ export default function TitleDetailsClient({ id }: { id: string }) {
 
       {/* 2. بطاقة وتفاصيل العمل */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-44 relative z-10">
-        
         <div className="flex flex-col md:flex-row gap-8 items-start mb-12">
-          
           <div className="w-48 sm:w-60 md:w-72 aspect-[2/3] rounded-3xl overflow-hidden shadow-2xl border border-white/10 shrink-0 bg-black/60">
             <img
-              src={posterUrl}
+              src={posterSrc}
               alt={title.title}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = DEFAULT_POSTER;
+              }}
               className="w-full h-full object-cover"
             />
           </div>
 
           <div className="flex-1 space-y-4 pt-2 md:pt-12">
-            
             <div className="flex flex-wrap items-center gap-2.5">
               <span className="flex items-center gap-1 text-amber-400 font-bold bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-xl text-xs backdrop-blur-md">
                 <Star className="w-3.5 h-3.5 fill-amber-400" />
@@ -275,7 +362,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
 
               {familyGuide?.age_recommendation && (
                 <span className="bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-bold px-3 py-1 rounded-xl text-xs">
-                  {familyGuide.age_recommendation}
+                  {translateMetric(familyGuide.age_recommendation, lang)}
                 </span>
               )}
             </div>
@@ -288,7 +375,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
               {title.description || t.noOverview}
             </p>
 
-            <div className="pt-2 flex items-center gap-3">
+            <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
                 onClick={handleBookmark}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all border cursor-pointer ${
@@ -300,12 +387,19 @@ export default function TitleDetailsClient({ id }: { id: string }) {
                 <Bookmark className={`w-4 h-4 ${saved ? "fill-black" : ""}`} />
                 <span>{saved ? t.inWatchlist : t.addToWatchlist}</span>
               </button>
-            </div>
 
+              <button
+                onClick={handleOpenTrailer}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-95 cursor-pointer shadow-lg shadow-amber-500/5"
+              >
+                <Play className="w-4 h-4 fill-amber-400" />
+                <span>{t.watchTrailer}</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* 3. منصات البث المعتمدة مع معالجة الصور البديلة */}
+        {/* 3. منصات البث المعتمدة */}
         <div className="mb-14">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4 mb-6">
             <div className="flex items-center gap-2.5">
@@ -327,7 +421,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
               >
                 {SUPPORTED_COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code} className="bg-[#0f141f] text-white">
-                    {c.flag} {c.name}
+                    {c.flag} {getCountryName(c.code, lang)}
                   </option>
                 ))}
               </select>
@@ -391,13 +485,13 @@ export default function TitleDetailsClient({ id }: { id: string }) {
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">{t.familyGuideTitle}</h3>
-                  <p className="text-xs text-gray-400">{familyGuide.overall_level}</p>
+                  <h3 className="text-lg font-bold text-white">{t.familyGuideMainTitle}</h3>
+                  <p className="text-xs text-gray-400">{translateMetric(familyGuide.overall_level, lang)}</p>
                 </div>
               </div>
 
               <span className="px-3 py-1 rounded-xl bg-amber-500 text-black font-black text-xs">
-                {familyGuide.age_recommendation}
+                {translateMetric(familyGuide.age_recommendation, lang)}
               </span>
             </div>
 
@@ -405,50 +499,50 @@ export default function TitleDetailsClient({ id }: { id: string }) {
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 text-xs">
                 <span className="flex items-center gap-1 text-gray-400">
                   <Flame className="w-3.5 h-3.5 text-amber-400" />
-                  {t.violence}:
+                  {lang === "ar" ? "العنف" : "Violence"}:
                 </span>
                 <span className={`px-2 py-0.5 rounded font-bold border text-[11px] ${getMetricStyle(familyGuide.violence)}`}>
-                  {familyGuide.violence}
+                  {translateMetric(familyGuide.violence, lang)}
                 </span>
               </div>
 
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 text-xs">
                 <span className="flex items-center gap-1 text-gray-400">
                   <Skull className="w-3.5 h-3.5 text-amber-400" />
-                  {t.fear}:
+                  {lang === "ar" ? "الخوف" : "Fear"}:
                 </span>
                 <span className={`px-2 py-0.5 rounded font-bold border text-[11px] ${getMetricStyle(familyGuide.fear)}`}>
-                  {familyGuide.fear}
+                  {translateMetric(familyGuide.fear, lang)}
                 </span>
               </div>
 
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 text-xs">
                 <span className="flex items-center gap-1 text-gray-400">
                   <Eye className="w-3.5 h-3.5 text-amber-400" />
-                  {t.sexualContent}:
+                  {lang === "ar" ? "المحتوى الجنسي" : "Sexual content"}:
                 </span>
                 <span className={`px-2 py-0.5 rounded font-bold border text-[11px] ${getMetricStyle(familyGuide.sexual_content)}`}>
-                  {familyGuide.sexual_content}
+                  {translateMetric(familyGuide.sexual_content, lang)}
                 </span>
               </div>
 
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 text-xs">
                 <span className="flex items-center gap-1 text-gray-400">
                   <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
-                  {t.languageMetric}:
+                  {lang === "ar" ? "اللغة" : "Language"}:
                 </span>
                 <span className={`px-2 py-0.5 rounded font-bold border text-[11px] ${getMetricStyle(familyGuide.language)}`}>
-                  {familyGuide.language}
+                  {translateMetric(familyGuide.language, lang)}
                 </span>
               </div>
 
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 text-xs">
                 <span className="flex items-center gap-1 text-gray-400">
                   <Wine className="w-3.5 h-3.5 text-amber-400" />
-                  {t.drugs}:
+                  {lang === "ar" ? "المخدرات" : "Drugs"}:
                 </span>
                 <span className={`px-2 py-0.5 rounded font-bold border text-[11px] ${getMetricStyle(familyGuide.drugs)}`}>
-                  {familyGuide.drugs}
+                  {translateMetric(familyGuide.drugs, lang)}
                 </span>
               </div>
             </div>
@@ -456,13 +550,11 @@ export default function TitleDetailsClient({ id }: { id: string }) {
             <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <p className="text-xs text-gray-300 leading-relaxed">
-                {familyGuide.parent_note}
+                {translateMetric(familyGuide.parent_note, lang)}
               </p>
             </div>
-
           </div>
         )}
-
       </div>
     </main>
   );

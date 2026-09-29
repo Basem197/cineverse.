@@ -3,171 +3,142 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { 
-  Bookmark, 
-  Trash2, 
-  Star, 
-  Film, 
-  PlayCircle, 
-  Sparkles,
-  ArrowLeft,
-  CloudCheck
-} from "lucide-react";
+import { Bookmark, Star, Trash2, ArrowLeft, ArrowRight } from "lucide-react";
 import { Title } from "@/types";
-import { getWatchlist, toggleWatchlist } from "@/utils/watchlist";
+import { getWatchlist, removeFromWatchlist } from "@/utils/watchlist";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { getPosterUrl, DEFAULT_POSTER } from "@/utils/imageUtils";
+import { translateTitleName } from "@/utils/translations";
 
 export default function WatchlistPage() {
-  const { user, syncWatchlistWithCloud } = useAuth();
+  const { user } = useAuth();
+  const { lang, dir, t } = useLanguage();
   const [items, setItems] = useState<Title[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadItems = () => {
-    setItems(getWatchlist());
-    setLoading(false);
-  };
 
   useEffect(() => {
-    if (user) {
-      syncWatchlistWithCloud(user.id).then(() => {
-        loadItems();
-      });
-    } else {
-      loadItems();
+    async function loadData() {
+      if (user) {
+        try {
+          const res = await fetch(`http://127.0.0.1/cineverse/public/api/user/watchlist?user_id=${user.id}`);
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data)) {
+            setItems(json.data);
+            return;
+          }
+        } catch (e) {
+          console.error("فشل جلب قائمة السحابة:", e);
+        }
+      }
+      setItems(getWatchlist());
     }
 
-    const handleUpdate = () => loadItems();
-    window.addEventListener("watchlist_changed", handleUpdate);
-    return () => window.removeEventListener("watchlist_changed", handleUpdate);
+    loadData();
   }, [user]);
 
-  const handleRemove = async (title: Title) => {
-    toggleWatchlist(title);
-    setItems((prev) => prev.filter((i) => i.id !== title.id));
+  const handleRemove = async (titleId: number) => {
+    removeFromWatchlist(titleId);
+    setItems((prev) => prev.filter((i) => i.id !== titleId));
 
     if (user) {
       try {
         await fetch("http://127.0.0.1/cineverse/public/api/user/watchlist/toggle", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: user.id, title_id: title.id }),
+          body: JSON.stringify({ user_id: user.id, title_id: titleId }),
         });
-      } catch (err) {
-        console.error("فشل في حذف العمل من السحابة:", err);
+      } catch (e) {
+        console.error("خطأ مزامنة الحذف:", e);
       }
     }
   };
 
   return (
-    <main className="min-h-screen bg-[#07090e] text-white pb-24 pt-8" dir="rtl">
-      
-      <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-amber-500/10 blur-[150px] rounded-full pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+    <main className="min-h-screen bg-[#07090e] text-white py-12 px-4 sm:px-6 lg:px-8" dir={dir}>
+      <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* هيدر الصفحة */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/10 pb-8 mb-8">
+        {/* ترويسة الصفحة */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold mb-3">
-              <Bookmark className="w-3.5 h-3.5" />
-              <span>قائمتي الشخصية للمشاهدة اللاحقة</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-white">
-              الأعمال المحفوظة
+            <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2.5">
+              <Bookmark className="w-6 h-6 text-amber-400" />
+              <span>{t.watchlistHeaderTitle}</span>
             </h1>
-            <p className="text-xs sm:text-sm text-gray-400 mt-1">
-              {user ? `مرحباً ${user.name}، قائمتك مزامنة سحابياً بحسابك` : "يتم حفظ قائمتك على هذا المتصفح (سجّل دخولك لحفظها سحابياً)"}
+            <p className="text-xs text-gray-400 mt-1">
+              {user 
+                ? t.watchlistSubCloud.replace("{name}", user.name) 
+                : t.watchlistSubLocal}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-300 font-bold">
-              إجمالي المحفوظات: <strong className="text-amber-400">{items.length}</strong>
-            </span>
+          <div className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl self-start sm:self-auto">
+            {t.totalSavedLabel} {items.length}
           </div>
         </div>
 
-        {/* عرض المحتوى */}
-        {loading ? (
-          <div className="py-24 flex flex-col items-center justify-center gap-3 text-amber-400">
-            <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-gray-400">جاري تحميل قائمتك...</span>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="py-20 text-center bg-[#0f141f] rounded-3xl border border-white/5 p-8 max-w-xl mx-auto">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mx-auto mb-4">
-              <Film className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">قائمتك فارغة حالياً</h3>
-            <p className="text-xs text-gray-400 mb-6 leading-relaxed">
-              تصفح الكتالوج واضغط على علامة "أضف لقائمتي" في أي عمل لتنظيمه في قائمة المشاهدة الخاصة بك.
-            </p>
+        {/* عرض العناصر */}
+        {items.length === 0 ? (
+          <div className="text-center py-20 bg-[#0f141f] rounded-3xl border border-white/5 p-8 max-w-lg mx-auto space-y-4">
+            <Bookmark className="w-12 h-12 text-gray-500 mx-auto" />
+            <h3 className="text-lg font-bold text-white">{t.emptyWatchlistTitle}</h3>
+            <p className="text-xs text-gray-400 leading-relaxed">{t.emptyWatchlistDesc}</p>
             <Link
               href="/titles"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs transition-all shadow-lg shadow-amber-500/10"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 text-black font-extrabold text-xs"
             >
-              <span>استكشف الكتالوج الآن</span>
-              <ArrowLeft className="w-4 h-4" />
+              <span>{t.exploreCatalogBtn}</span>
+              {dir === "rtl" ? <ArrowLeft className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-            {items.map((item) => {
-              const poster = item.poster_path?.startsWith("http")
-                ? item.poster_path
-                : item.poster_path
-                ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-                : "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80";
-
-              return (
-                <div
-                  key={item.id}
-                  className="bg-[#0f141f] rounded-2xl border border-white/10 overflow-hidden group hover:border-amber-400/40 transition-all flex flex-col justify-between"
-                >
-                  <div className="relative aspect-[2/3] overflow-hidden bg-black/50">
-                    <img
-                      src={poster}
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-
-                    {/* زر الحذف */}
-                    <button
-                      onClick={() => handleRemove(item)}
-                      title="حذف من القائمة"
-                      className="absolute top-2 left-2 p-2 rounded-xl bg-black/70 hover:bg-rose-600 text-white backdrop-blur-md transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* التقييم */}
-                    <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/80 backdrop-blur-md px-2 py-1 rounded-lg text-[10px] font-bold text-amber-400 border border-white/10">
-                      <Star className="w-3 h-3 fill-amber-400" />
-                      <span>{Number(item.rating).toFixed(1)}</span>
-                    </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {items.map((title) => (
+              <div
+                key={title.id}
+                className="bg-[#0f141f] border border-white/10 rounded-2xl overflow-hidden hover:border-amber-500/40 transition-all flex flex-col group"
+              >
+                <div className="aspect-[2/3] w-full overflow-hidden bg-black/60 relative">
+                  <img
+                    src={getPosterUrl(title.poster_path)}
+                    alt={title.title}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = DEFAULT_POSTER;
+                    }}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-lg border border-white/10 flex items-center gap-1 text-[11px] text-amber-400 font-bold">
+                    <Star className="w-3 h-3 fill-amber-400" />
+                    <span>{Number(title.rating).toFixed(1)}</span>
                   </div>
-
-                  <div className="p-3.5 flex flex-col justify-between flex-1 gap-3">
-                    <div>
-                      <h4 className="text-xs font-bold text-white truncate" title={item.title}>
-                        {item.title}
-                      </h4>
-                      <span className="text-[10px] text-gray-400">
-                        {item.release_year || "حديث"}
-                      </span>
-                    </div>
-
-                    <Link
-                      href={`/title/${item.id}`}
-                      className="w-full py-2 rounded-xl bg-white/5 hover:bg-amber-500 text-gray-300 hover:text-black font-bold text-[11px] text-center transition-all flex items-center justify-center gap-1.5 border border-white/5"
-                    >
-                      <PlayCircle className="w-3.5 h-3.5" />
-                      <span>تفاصيل العرض</span>
-                    </Link>
-                  </div>
+                  <button
+                    onClick={() => handleRemove(title.id)}
+                    className="absolute top-2 left-2 p-1.5 rounded-lg bg-black/70 hover:bg-rose-500 text-white transition-all cursor-pointer"
+                    title="Remove"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              );
-            })}
+
+                <div className="p-3 flex flex-col flex-1 justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-xs text-white truncate">
+                      {translateTitleName(title.title, lang)}
+                    </h3>
+                    <span className="text-[10px] text-gray-400">
+                      {title.release_year || "2026"}
+                    </span>
+                  </div>
+
+                  <Link
+                    href={`/title/${title.id}`}
+                    className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-amber-400 font-bold"
+                  >
+                    <span>{t.viewTitleDetails}</span>
+                    {dir === "rtl" ? <ArrowLeft className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
