@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --bg-main: #07090e;
+  --surface: #0f141f;
+  --surface-light: #182133;
+  --gold: #e5a93c;
+}
+
+body {
+  background-color: #07090e;
+  color: #f3f4f6;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* سكرول بار سينمائي أنيق */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #07090e;
+}
+::-webkit-scrollbar-thumb {
+  background: #182133;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e5a93c;
+}
