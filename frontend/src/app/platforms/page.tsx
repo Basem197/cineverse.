@@ -35,7 +35,7 @@ export default function PlatformsPage() {
     async function loadProviders() {
       setLoading(true);
       try {
-        const res = await fetch("http://127.0.0.1/cineverse/public/api/providers");
+        const res = await fetch("https://whole-tables-divide.loca.lt/cineverse/public/api/providers");
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setProviders(json.data);

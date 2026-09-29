@@ -34,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // سحب قائمة الأفلام ديناميكياً لتوليد روابطها في الـ Sitemap
   try {
-    const res = await fetch("http://127.0.0.1/cineverse/public/api/titles?limit=500", {
+    const res = await fetch("https://whole-tables-divide.loca.lt/cineverse/public/api/titles?limit=500", {
       next: { revalidate: 3600 },
     });
     const json = await res.json();

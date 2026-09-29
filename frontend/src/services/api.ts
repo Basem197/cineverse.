@@ -9,7 +9,7 @@ import {
   Genre,
 } from "@/types";
 
-const API_BASE_URL = "http://127.0.0.1/cineverse/public/api";
+const API_BASE_URL = "https://whole-tables-divide.loca.lt/cineverse/public/api";
 
 export async function fetchApi<T>(
   endpoint: string,

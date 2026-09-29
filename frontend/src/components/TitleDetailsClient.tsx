@@ -100,7 +100,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
     async function fetchTitleDetails() {
       setLoading(true);
       try {
-        const res = await fetch(`http://127.0.0.1/cineverse/public/api/title/${id}?lang=${lang}`);
+        const res = await fetch(`https://whole-tables-divide.loca.lt/cineverse/public/api/title/${id}?lang=${lang}`);
         const json = await res.json();
         if (json.success && json.data) {
           setTitle(json.data);
@@ -123,7 +123,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
     async function fetchAvailability() {
       try {
         const res = await fetch(
-          `http://127.0.0.1/cineverse/public/api/titles/${id}/availability?country=${selectedCountry}`
+          `https://whole-tables-divide.loca.lt/cineverse/public/api/titles/${id}/availability?country=${selectedCountry}`
         );
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
@@ -146,7 +146,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
 
     async function fetchGuide() {
       try {
-        const res = await fetch(`http://127.0.0.1/cineverse/public/api/titles/${id}/family-guide`);
+        const res = await fetch(`https://whole-tables-divide.loca.lt/cineverse/public/api/titles/${id}/family-guide`);
         const json = await res.json();
         if (json.success && json.data) {
           setFamilyGuide(json.data);
@@ -164,7 +164,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
     if (!trailerKey) {
       setLoadingTrailer(true);
       try {
-        const res = await fetch(`http://127.0.0.1/cineverse/public/api/titles/${id}/trailer`);
+        const res = await fetch(`https://whole-tables-divide.loca.lt/cineverse/public/api/titles/${id}/trailer`);
         const json = await res.json();
         if (json.success && json.data?.trailer_key) {
           setTrailerKey(json.data.trailer_key);
@@ -184,7 +184,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
 
     if (user) {
       try {
-        await fetch("http://127.0.0.1/cineverse/public/api/user/watchlist/toggle", {
+        await fetch("https://whole-tables-divide.loca.lt/cineverse/public/api/user/watchlist/toggle", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -200,7 +200,7 @@ export default function TitleDetailsClient({ id }: { id: string }) {
 
   const handleAffiliateClick = async (affUrl: string, officialUrl: string) => {
     try {
-      fetch("http://127.0.0.1/cineverse/public/api/affiliate/track", {
+      fetch("https://whole-tables-divide.loca.lt/cineverse/public/api/affiliate/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

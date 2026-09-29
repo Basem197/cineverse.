@@ -43,7 +43,7 @@ export default function FamilyGuidePage() {
       setLoading(true);
       try {
         const query = selectedAge !== "all" ? `?age=${encodeURIComponent(selectedAge)}` : "";
-        const res = await fetch(`http://127.0.0.1/cineverse/public/api/family-guides${query}`);
+        const res = await fetch(`https://whole-tables-divide.loca.lt/cineverse/public/api/family-guides${query}`);
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setGuides(json.data);

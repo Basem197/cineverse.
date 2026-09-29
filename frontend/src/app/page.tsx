@@ -48,7 +48,7 @@ export default function HomePage() {
     async function loadLatest() {
       setLoading(true);
       try {
-        const res = await fetch(`http://127.0.0.1/cineverse/public/api/titles?limit=12`);
+        const res = await fetch(`https://whole-tables-divide.loca.lt/cineverse/public/api/titles?limit=12`);
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setTitles(json.data);

@@ -20,7 +20,7 @@ export default function WatchlistPage() {
     async function loadData() {
       if (user) {
         try {
-          const res = await fetch(`http://127.0.0.1/cineverse/public/api/user/watchlist?user_id=${user.id}`);
+          const res = await fetch(`https://whole-tables-divide.loca.lt/cineverse/public/api/user/watchlist?user_id=${user.id}`);
           const json = await res.json();
           if (json.success && Array.isArray(json.data)) {
             setItems(json.data);
@@ -42,7 +42,7 @@ export default function WatchlistPage() {
 
     if (user) {
       try {
-        await fetch("http://127.0.0.1/cineverse/public/api/user/watchlist/toggle", {
+        await fetch("https://whole-tables-divide.loca.lt/cineverse/public/api/user/watchlist/toggle", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user_id: user.id, title_id: titleId }),

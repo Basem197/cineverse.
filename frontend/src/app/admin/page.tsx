@@ -50,7 +50,7 @@ export default function AdminDashboardPage() {
   const fetchStatsWithToken = async (token: string): Promise<boolean> => {
     setLoadingStats(true);
     try {
-      const res = await fetch("http://127.0.0.1/cineverse/public/api/admin/stats", {
+      const res = await fetch("https://whole-tables-divide.loca.lt/cineverse/public/api/admin/stats", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
     setSyncing(true);
     setSyncMsg(null);
     try {
-      const res = await fetch("http://127.0.0.1/cineverse/public/api/admin/sync", {
+      const res = await fetch("https://whole-tables-divide.loca.lt/cineverse/public/api/admin/sync", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

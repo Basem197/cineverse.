@@ -19,7 +19,7 @@ export default function TitlesPage() {
       setLoading(true);
       try {
         const query = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : "";
-        const res = await fetch(`http://127.0.0.1/cineverse/public/api/titles${query}`);
+        const res = await fetch(`https://whole-tables-divide.loca.lt/cineverse/public/api/titles${query}`);
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setTitles(json.data);

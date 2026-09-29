@@ -51,7 +51,7 @@ export default function FamilyGuideHubPage() {
     async function fetchGuides() {
       setLoading(true);
       try {
-        const res = await fetch("http://127.0.0.1/cineverse/public/api/family-guides");
+        const res = await fetch("https://whole-tables-divide.loca.lt/cineverse/public/api/family-guides");
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setGuideCatalog(json.data);

@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const syncWatchlistWithCloud = async (userId: number) => {
     try {
       // 1. جلب قائمة المشاهدة من السيرفر
-      const res = await fetch(`http://127.0.0.1/cineverse/public/api/user/watchlist?user_id=${userId}`);
+      const res = await fetch(`https://whole-tables-divide.loca.lt/cineverse/public/api/user/watchlist?user_id=${userId}`);
       const json = await res.json();
       
       if (json.success && Array.isArray(json.data)) {
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!mergedMap.has(item.id)) {
             mergedMap.set(item.id, item);
             // رفع العنصر المحلي الذي لم يكن في السحابة
-            fetch("http://127.0.0.1/cineverse/public/api/user/watchlist/toggle", {
+            fetch("https://whole-tables-divide.loca.lt/cineverse/public/api/user/watchlist/toggle", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ user_id: userId, title_id: item.id }),

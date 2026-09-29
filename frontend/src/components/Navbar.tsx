@@ -61,7 +61,7 @@ export default function Navbar() {
     const delayDebounce = setTimeout(async () => {
       try {
         const res = await fetch(
-          `http://127.0.0.1/cineverse/public/api/titles?search=${encodeURIComponent(searchVal.trim())}&limit=5`
+          `https://whole-tables-divide.loca.lt/cineverse/public/api/titles?search=${encodeURIComponent(searchVal.trim())}&limit=5`
         );
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
